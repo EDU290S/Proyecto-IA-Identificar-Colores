@@ -180,14 +180,47 @@ def detect_colors_in_image(image, colors):
     return masks
 
 def load_and_predict_image():
-    if app.camera_on:
-        app.camera_on = False
-        app.cap.release()
-        app.video_label.config(image='')
     file_path = filedialog.askopenfilename()
     if file_path:
         img = cv2.imread(file_path)
-        process_frame(img)
+        if img is None:
+            print(f"No se pudo cargar la imagen desde {file_path}")
+            return
+        process_image(img)
+
+def process_image(img):
+    masks = detect_colors_in_image(img, app.colors)
+    img_copy = img.copy()
+    color_pixel_counts = {color_name: 0 for color_name in app.color_names}
+    
+    for color_name, mask in zip(app.color_names, masks):
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            color_pixel_counts[color_name] += cv2.countNonZero(mask[y:y+h, x:x+w])
+            cv2.rectangle(img_copy, (x, y), (x+w, y+h), color_bgr[color_name], 2)
+            cv2.putText(img_copy, color_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr[color_name], 2)
+    
+    app.pixel_count_label.config(text="\n".join([f"{color_name}: {count}" for color_name, count in color_pixel_counts.items()]))
+    
+    classifications = classify_image(img)
+    label = classifications[0][1]
+    confidence = classifications[0][2]
+    cv2.putText(img_copy, f'{label}: {confidence:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    
+    colors = get_dominant_colors(img)
+    color_bar = draw_dominant_colors(colors)
+    
+    color_bar_img = Image.fromarray(color_bar)
+    color_bar_imgtk = ImageTk.PhotoImage(image=color_bar_img)
+    app.color_bar_label.imgtk = color_bar_imgtk
+    app.color_bar_label.configure(image=color_bar_imgtk)
+
+    img_rgb = cv2.cvtColor(img_copy, cv2.COLOR_BGR2RGB)
+    img_pil = Image.fromarray(img_rgb)
+    imgtk = ImageTk.PhotoImage(image=img_pil)
+    app.video_label.imgtk = imgtk
+    app.video_label.configure(image=imgtk)
 
 class ColorDetectorApp:
     def __init__(self, root):
@@ -248,8 +281,6 @@ class ColorDetectorApp:
         
         self.camera_on = False
         self.cap = None
-        
-        self.draw_neural_network()
 
     def toggle_camera(self):
         if self.camera_on:
@@ -265,38 +296,7 @@ class ColorDetectorApp:
         global training_details
         info_text = "Información de Entrenamiento:\n" + "\n".join(training_details[-10:])
         self.training_info_label.config(text=info_text)
-    
-    def draw_neural_network(self):
-        fig, ax = plt.subplots(figsize=(5, 5))
-        
-        layer_sizes = [3, 128, 8]  # Ejemplo de tamaño de las capas: entrada, oculta, salida
-        v_spacing = 1 / float(max(layer_sizes))
-        h_spacing = 1 / float(len(layer_sizes) - 1)
-        
-        # Dibujar los nodos
-        for n, layer_size in enumerate(layer_sizes):
-            layer_top = v_spacing * (layer_size - 1) / 2
-            for m in range(layer_size):
-                circle = plt.Circle((n * h_spacing, layer_top - m * v_spacing), v_spacing / 4.,
-                                    color='w', ec='k', zorder=4)
-                ax.add_artist(circle)
-                
-        # Dibujar las conexiones
-        for n, (layer_size_a, layer_size_b) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
-            layer_top_a = v_spacing * (layer_size_a - 1) / 2
-            layer_top_b = v_spacing * (layer_size_b - 1) / 2
-            for m in range(layer_size_a):
-                for o in range(layer_size_b):
-                    line = plt.Line2D([n * h_spacing, (n + 1) * h_spacing],
-                                      [layer_top_a - m * v_spacing, layer_top_b - o * v_spacing], c='k')
-                    ax.add_artist(line)
-                    
-        ax.axis('off')
-        
-        canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        
+
 def main():
     global app
     root = tk.Tk()

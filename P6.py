@@ -137,12 +137,19 @@ def process_frame(frame):
     masks = detect_colors_in_image(frame, app.colors)
     frame_copy = frame.copy()
     color_pixel_counts = {color_name: 0 for color_name in app.color_names}
+    grouped_contours = {color_name: [] for color_name in app.color_names}
     
     for color_name, mask in zip(app.color_names, masks):
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
-            color_pixel_counts[color_name] += cv2.countNonZero(mask[y:y+h, x:x+w])
+            if w * h > 500:  # Filtro para eliminar pequeñas detecciones
+                color_pixel_counts[color_name] += cv2.countNonZero(mask[y:y+h, x:x+w])
+                grouped_contours[color_name].append((x, y, w, h))
+    
+    for color_name, rects in grouped_contours.items():
+        for rect in rects:
+            x, y, w, h = rect
             cv2.rectangle(frame_copy, (x, y), (x+w, y+h), color_bgr[color_name], 2)
             cv2.putText(frame_copy, color_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr[color_name], 2)
     
@@ -151,8 +158,7 @@ def process_frame(frame):
     classifications = classify_image(frame)
     label = classifications[0][1]
     confidence = classifications[0][2]
-    cv2.putText(frame_copy, f'{label}: {confidence:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
+    
     colors = get_dominant_colors(frame)
     color_bar = draw_dominant_colors(colors)
     
@@ -165,6 +171,8 @@ def process_frame(frame):
     imgtk = ImageTk.PhotoImage(image=img)
     app.video_label.imgtk = imgtk
     app.video_label.configure(image=imgtk)
+    
+    app.classification_label.config(text=f'{label}: {confidence:.2f}')
 
 def detect_colors_in_image(image, colors):
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -192,12 +200,19 @@ def process_image(img):
     masks = detect_colors_in_image(img, app.colors)
     img_copy = img.copy()
     color_pixel_counts = {color_name: 0 for color_name in app.color_names}
+    grouped_contours = {color_name: [] for color_name in app.color_names}
     
     for color_name, mask in zip(app.color_names, masks):
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
-            color_pixel_counts[color_name] += cv2.countNonZero(mask[y:y+h, x:x+w])
+            if w * h > 500:  # Filtro para eliminar pequeñas detecciones
+                color_pixel_counts[color_name] += cv2.countNonZero(mask[y:y+h, x:x+w])
+                grouped_contours[color_name].append((x, y, w, h))
+    
+    for color_name, rects in grouped_contours.items():
+        for rect in rects:
+            x, y, w, h = rect
             cv2.rectangle(img_copy, (x, y), (x+w, y+h), color_bgr[color_name], 2)
             cv2.putText(img_copy, color_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr[color_name], 2)
     
@@ -268,6 +283,9 @@ class ColorDetectorApp:
 
         self.pixel_count_label = tk.Label(self.right_frame, text="Pixeles detectados:", bg='#2e2e2e', fg='white', justify=tk.LEFT)
         self.pixel_count_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        self.classification_label = tk.Label(self.right_frame, text="", bg='#2e2e2e', fg='white', justify=tk.LEFT)
+        self.classification_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
         self.training_info_label = tk.Label(self.right_frame, text="Información de Entrenamiento:", bg='#2e2e2e', fg='white', justify=tk.LEFT)
         self.training_info_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)

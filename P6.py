@@ -194,7 +194,16 @@ def load_and_predict_image():
         if img is None:
             print(f"No se pudo cargar la imagen desde {file_path}")
             return
+        img = resize_image(img, 800)  # Redimensionar la imagen a un ancho máximo de 800 píxeles
         process_image(img)
+
+def resize_image(img, max_width):
+    height, width = img.shape[:2]
+    if width > max_width:
+        new_width = max_width
+        new_height = int(height * (max_width / width))
+        img = cv2.resize(img, (new_width, new_height))
+    return img
 
 def process_image(img):
     masks = detect_colors_in_image(img, app.colors)
@@ -221,7 +230,7 @@ def process_image(img):
     classifications = classify_image(img)
     label = classifications[0][1]
     confidence = classifications[0][2]
-    cv2.putText(img_copy, f'{label}: {confidence:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    app.classification_label.config(text=f'{label}: {confidence:.2f}')
     
     colors = get_dominant_colors(img)
     color_bar = draw_dominant_colors(colors)
@@ -269,18 +278,6 @@ class ColorDetectorApp:
         for label in self.color_labels:
             label.pack(side=tk.LEFT, padx=2)
 
-        self.toggle_camera_button = tk.Button(self.left_frame, text="Activar/Desactivar Cámara", command=self.toggle_camera, bg='#007bff', fg='white')
-        self.toggle_camera_button.pack(padx=5, pady=10, fill=tk.X)
-
-        self.load_button = tk.Button(self.left_frame, text="Cargar Imagen", command=load_and_predict_image, bg='#007bff', fg='white')
-        self.load_button.pack(padx=5, pady=10, fill=tk.X)
-
-        self.button_frame = tk.Frame(self.left_frame, bg='#2e2e2e')
-        self.button_frame.pack(padx=5, pady=10, fill=tk.X)
-
-        self.exit_button = tk.Button(self.button_frame, text="Salir", command=root.quit, bg='#dc3545', fg='white')
-        self.exit_button.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-
         self.pixel_count_label = tk.Label(self.right_frame, text="Pixeles detectados:", bg='#2e2e2e', fg='white', justify=tk.LEFT)
         self.pixel_count_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
@@ -289,6 +286,18 @@ class ColorDetectorApp:
 
         self.training_info_label = tk.Label(self.right_frame, text="Información de Entrenamiento:", bg='#2e2e2e', fg='white', justify=tk.LEFT)
         self.training_info_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        self.button_frame = tk.Frame(self.right_frame, bg='#2e2e2e')
+        self.button_frame.pack(padx=5, pady=10, fill=tk.X, side=tk.BOTTOM)
+
+        self.toggle_camera_button = tk.Button(self.button_frame, text="Activar/Desactivar Cámara", command=self.toggle_camera, bg='#007bff', fg='white')
+        self.toggle_camera_button.pack(padx=5, pady=5, fill=tk.X)
+
+        self.load_button = tk.Button(self.button_frame, text="Cargar Imagen", command=load_and_predict_image, bg='#007bff', fg='white')
+        self.load_button.pack(padx=5, pady=5, fill=tk.X)
+
+        self.exit_button = tk.Button(self.button_frame, text="Salir", command=root.quit, bg='#dc3545', fg='white')
+        self.exit_button.pack(padx=5, pady=5, fill=tk.X)
 
         self.canvas_frame = tk.Frame(self.right_frame, bg='#2e2e2e')
         self.canvas_frame.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)

@@ -19,7 +19,7 @@ color_ranges = {
     "Rojo2": ([170, 120, 70], [180, 255, 255]),  # Rojo tiene dos rangos en HSV
     "Verde": ([36, 100, 100], [86, 255, 255]),
     "Azul": ([94, 80, 2], [126, 255, 255]),
-    "Cian": ([78, 158, 124], [138, 255, 255]),
+    "Cian": ([78, 100, 100], [94, 255, 255]),  # Ajustado para separar mejor cian y azul
     "Magenta": ([140, 100, 100], [170, 255, 255]),
     "Amarillo": ([25, 100, 100], [35, 255, 255]),
     "Negro": ([0, 0, 0], [180, 255, 30]),
@@ -47,7 +47,7 @@ def create_image_with_color(color):
     img = Image.new('RGB', (100, 100), color=color)
     return np.array(img)
 
-def train_color_model():
+def train_color_model(epochs=10):
     X_train = []
     y_train = []
     colors = [
@@ -87,7 +87,7 @@ def train_color_model():
             print("Pesos de la primera capa:", self.model.layers[1].get_weights()[0])
             app.update_training_info()
 
-    color_model.fit(X_train, y_train, epochs=10, callbacks=[CustomCallback()], verbose=1)
+    color_model.fit(X_train, y_train, epochs=epochs, callbacks=[CustomCallback()], verbose=1)
     color_model.save('color_model.h5')
     return color_model
 
@@ -151,7 +151,11 @@ def process_frame(frame):
         for rect in rects:
             x, y, w, h = rect
             cv2.rectangle(frame_copy, (x, y), (x+w, y+h), color_bgr[color_name], 2)
-            cv2.putText(frame_copy, color_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr[color_name], 2)
+            text_size = cv2.getTextSize(color_name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+            text_x = x + (w - text_size[0]) // 2
+            text_y = y + (h + text_size[1]) // 2
+            text_color = (0, 0, 0) if color_name != "Negro" else (255, 255, 255)
+            cv2.putText(frame_copy, color_name, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
     
     app.pixel_count_label.config(text="\n".join([f"{color_name}: {count}" for color_name, count in color_pixel_counts.items()]))
 
@@ -195,6 +199,8 @@ def load_and_predict_image():
             print(f"No se pudo cargar la imagen desde {file_path}")
             return
         img = resize_image(img, 800)  # Redimensionar la imagen a un ancho máximo de 800 píxeles
+        # Entrenar el modelo con 100 épocas
+        train_color_model(epochs=10)
         process_image(img)
 
 def resize_image(img, max_width):
@@ -223,7 +229,11 @@ def process_image(img):
         for rect in rects:
             x, y, w, h = rect
             cv2.rectangle(img_copy, (x, y), (x+w, y+h), color_bgr[color_name], 2)
-            cv2.putText(img_copy, color_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_bgr[color_name], 2)
+            text_size = cv2.getTextSize(color_name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+            text_x = x + (w - text_size[0]) // 2
+            text_y = y + (h + text_size[1]) // 2
+            text_color = (0, 0, 0) if color_name != "Negro" else (255, 255, 255)
+            cv2.putText(img_copy, color_name, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
     
     app.pixel_count_label.config(text="\n".join([f"{color_name}: {count}" for color_name, count in color_pixel_counts.items()]))
     

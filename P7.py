@@ -48,6 +48,12 @@ def create_image_with_color(color):
     img = Image.new('RGB', (100, 100), color=color)
     return np.array(img)
 
+
+
+    """
+    Seccion de implementacion de epocas
+    
+    """
 # Función para entrenar el modelo de detección de colores
 def train_color_model(epochs=10):
     X_train = []
@@ -255,7 +261,7 @@ def load_and_predict_image():
             return
         img = resize_image(img, 800)  # Redimensionar la imagen a un ancho máximo de 800 píxeles
         # Entrenar el modelo con 100 épocas
-        train_color_model(epochs=10)
+        train_color_model(epochs=100)
         process_image(img)
 
 # Función para redimensionar una imagen
@@ -353,9 +359,24 @@ class ColorDetectorApp:
         self.menu_frame = ttk.Frame(self.root, width=200, style='Menu.TFrame')
         self.menu_frame.pack(fill=tk.Y, side=tk.LEFT, padx=10, pady=10)
 
-        self.title_label = ttk.Label(self.menu_frame, text="Nombre de la App", font=('Arial', 24), background='#6f42c1', foreground='white', anchor='center')
-        self.title_label.pack(pady=10)
 
+        self.title_label = ttk.Label(self.menu_frame, text="C", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="O", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="L", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="O", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="R", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="N", font=('impact', 25), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="E", font=('impact', 25), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="T", font=('impact', 25), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        
         self.left_frame = ttk.Frame(self.root, style='Shadow.TFrame')
         self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         self.right_frame = ttk.Frame(self.root, style='Shadow.TFrame')

@@ -8,10 +8,8 @@ from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_i
 from tensorflow.keras.preprocessing.image import img_to_array
 import tkinter as tk
 from tkinter import filedialog, ttk
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import os
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Definimos los límites HSV para los colores específicos
 color_ranges = {
@@ -50,6 +48,12 @@ def create_image_with_color(color):
     img = Image.new('RGB', (100, 100), color=color)
     return np.array(img)
 
+
+
+    """
+    Seccion de implementacion de epocas
+    
+    """
 # Función para entrenar el modelo de detección de colores
 def train_color_model(epochs=10):
     X_train = []
@@ -170,6 +174,9 @@ def process_frame(frame):
             text_y = y + (h + text_size[1]) // 2
             text_color = (0, 0, 0) if color_name != "Negro" else (255, 255, 255)
             cv2.putText(frame_copy, color_name, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
+
+    shapes = detect_shapes_in_image(frame_copy)
+    app.shape_count_label.config(text="\n".join([f"{shape_name}: {count}" for shape_name, count in shapes.items()]))
     
     app.pixel_count_label.config(text="\n".join([f"{color_name}: {count}" for color_name, count in color_pixel_counts.items()]))
 
@@ -205,6 +212,44 @@ def detect_colors_in_image(image, colors):
             mask = mask + mask2
         masks.append(mask)
     return masks
+
+# Función para detectar formas en una imagen
+def detect_shapes_in_image(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edged = cv2.Canny(blurred, 50, 150)
+    
+    contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    shapes = {"Circle": 0, "Square": 0, "Triangle": 0, "Rectangle": 0, "Polygon": 0, "Rectangle (Side)": 0}
+    
+    for contour in contours:
+        shape = classify_shape(contour)
+        shapes[shape] += 1
+        
+    return shapes
+
+# Función para clasificar una forma en función de sus contornos
+def classify_shape(contour):
+    shape = "Unidentified"
+    peri = cv2.arcLength(contour, True)
+    approx = cv2.approxPolyDP(contour, 0.02 * peri, True)  # Aumenta la precisión del contorno
+    
+    if len(approx) == 3:
+        shape = "Triangle"
+    elif len(approx) == 4:
+        (x, y, w, h) = cv2.boundingRect(approx)
+        ar = w / float(h)
+        if ar >= 0.90 and ar <= 1.10:  # Relación de aspecto ajustada para mejor precisión
+            shape = "Square"
+        else:
+            angle = cv2.minAreaRect(approx)[-1]
+            shape = "Rectangle (Side)" if angle not in [-90, 0] else "Rectangle"
+    elif len(approx) > 4:
+        shape = "Circle"
+    else:
+        shape = "Polygon"
+    
+    return shape
 
 # Función para cargar una imagen y predecir los colores en ella
 def load_and_predict_image():
@@ -252,6 +297,9 @@ def process_image(img):
             text_y = y + (h + text_size[1]) // 2
             text_color = (0, 0, 0) if color_name != "Negro" else (255, 255, 255)
             cv2.putText(img_copy, color_name, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
+
+    shapes = detect_shapes_in_image(img_copy)
+    app.shape_count_label.config(text="\n".join([f"{shape_name}: {count}" for shape_name, count in shapes.items()]))
     
     app.pixel_count_label.config(text="\n".join([f"{color_name}: {count}" for color_name, count in color_pixel_counts.items()]))
     
@@ -274,61 +322,121 @@ def process_image(img):
     app.video_label.imgtk = imgtk
     app.video_label.configure(image=imgtk)
 
+def draw_rectangle(color, size=20):
+    img = Image.new('RGB', (size, size), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 0, size-1, size-1), outline=color, width=3)
+    draw.rectangle((3, 3, size-4, size-4), fill=color)
+    return ImageTk.PhotoImage(img)
+
+def draw_color_rectangles(colors, size=50):
+    img = Image.new('RGB', (len(colors) * size, size), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    for i, color in enumerate(colors):
+        draw.rectangle([i * size, 0, (i + 1) * size, size], fill=color)
+    return ImageTk.PhotoImage(img)
+
 # Clase principal de la aplicación
 class ColorDetectorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Detección de Colores")
-        self.root.geometry("1000x800")
-        self.root.configure(bg='#2e2e2e')  # Fondo oscuro
+        self.root.title("Detección de Colores y Formas")
+        self.root.geometry("1200x800")
+        self.root.configure(bg='#D6D6D6')  # Fondo claro
         
         self.colors = ["Rojo", "Verde", "Azul", "Cian", "Magenta", "Amarillo", "Negro", "Blanco"]
         self.color_names = ["Rojo", "Verde", "Azul", "Cian", "Magenta", "Amarillo", "Negro", "Blanco"]
 
-        self.paned_window = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, bg='#2e2e2e')
-        self.paned_window.pack(fill=tk.BOTH, expand=True)
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        self.style.configure('TFrame', background='#D6D6D6')
+        self.style.configure('TLabel', background='#D6D6D6', font=('Arial', 12))
+        self.style.configure('TButton', font=('Arial', 12), background='#007bff', foreground='white')  # Fondo azul
+        self.style.configure('Menu.TFrame', background='#6f42c1')  # Fondo morado para el menú
+        self.style.configure('Shadow.TFrame', relief='groove', borderwidth=2)
+        self.style.configure('Shadow.TLabel', background='#D6D6D6', font=('Arial', 12), relief='groove', borderwidth=2)
         
-        self.left_frame = tk.Frame(self.paned_window, bg='#2e2e2e')
-        self.paned_window.add(self.left_frame, minsize=600)
-        
-        self.right_frame = tk.Frame(self.paned_window, bg='#2e2e2e')
-        self.paned_window.add(self.right_frame, minsize=400)
+        self.menu_frame = ttk.Frame(self.root, width=200, style='Menu.TFrame')
+        self.menu_frame.pack(fill=tk.Y, side=tk.LEFT, padx=10, pady=10)
 
-        self.video_label = tk.Label(self.left_frame, bg='#2e2e2e')
+
+        self.title_label = ttk.Label(self.menu_frame, text="C", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="O", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="L", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="O", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="R", font=('impact', 30), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="N", font=('impact', 25), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="E", font=('impact', 25), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        self.title_label = ttk.Label(self.menu_frame, text="T", font=('impact', 25), background='#6f42c1', foreground='white', anchor='center')
+        self.title_label.pack(pady=10)
+        
+        self.left_frame = ttk.Frame(self.root, style='Shadow.TFrame')
+        self.left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.right_frame = ttk.Frame(self.root, style='Shadow.TFrame')
+        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.video_label = ttk.Label(self.left_frame, anchor='center', style='Shadow.TLabel')
         self.video_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        self.color_bar_label = tk.Label(self.left_frame, bg='#2e2e2e')
+        self.color_bar_label = ttk.Label(self.left_frame, anchor='center', style='Shadow.TLabel')
         self.color_bar_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        self.color_labels_frame = tk.Frame(self.left_frame, bg='#2e2e2e')
+        self.color_labels_frame = ttk.Frame(self.left_frame)
         self.color_labels_frame.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        self.color_labels = [tk.Label(self.color_labels_frame, text=color_name, bg='#%02x%02x%02x' % tuple(color), width=20, fg='white', font=('Arial', 10)) for color, color_name in zip([(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 0), (0, 0, 0), (255, 255, 255)], self.color_names)]
-        for label in self.color_labels:
-            label.pack(side=tk.LEFT, padx=2)
+        self.color_labels = []
+        for color_name, color in zip(self.color_names, ["#ff0000", "#00ff00", "#0000ff", "#00ffff", "#ff00ff", "#ffff00", "#000000", "#ffffff"]):
+            frame = ttk.Frame(self.color_labels_frame)
+            label = ttk.Label(frame, text=color_name, width=10, font=('Arial', 10), background='#D6D6D6', anchor='center')
+            label.pack(side=tk.TOP, padx=2, pady=2)
+            rectangle = ttk.Label(frame, image=draw_rectangle(color), background='#D6D6D6', anchor='center')
+            rectangle.pack(side=tk.BOTTOM, padx=2, pady=2)
+            frame.pack(side=tk.LEFT, padx=5, pady=5)
+            self.color_labels.append((label, rectangle))
 
-        self.pixel_count_label = tk.Label(self.right_frame, text="Pixeles detectados:", bg='#2e2e2e', fg='white', justify=tk.LEFT)
+        self.color_display_label = ttk.Label(self.left_frame, anchor='center')
+        self.color_display_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        colors_bgr = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255), (0, 0, 0), (255, 255, 255)]
+        color_rectangles_img = draw_color_rectangles(colors_bgr)
+        self.color_display_label.imgtk = color_rectangles_img
+        self.color_display_label.configure(image=color_rectangles_img)
+
+        self.pixel_count_label = ttk.Label(self.right_frame, text="Pixeles detectados:", justify=tk.CENTER, anchor='center', style='Shadow.TLabel')
         self.pixel_count_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        self.classification_label = tk.Label(self.right_frame, text="", bg='#2e2e2e', fg='white', justify=tk.LEFT)
+        self.shape_count_label = ttk.Label(self.right_frame, text="Formas detectadas:", justify=tk.CENTER, anchor='center', style='Shadow.TLabel')
+        self.shape_count_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        self.classification_label = ttk.Label(self.right_frame, text="", justify=tk.CENTER, anchor='center', style='Shadow.TLabel')
         self.classification_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        self.training_info_label = tk.Label(self.right_frame, text="Información de Entrenamiento:", bg='#2e2e2e', fg='white', justify=tk.LEFT)
+        self.training_info_label = ttk.Label(self.right_frame, text="Información de Entrenamiento:", justify=tk.CENTER, anchor='center', style='Shadow.TLabel')
         self.training_info_label.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        self.button_frame = tk.Frame(self.right_frame, bg='#2e2e2e')
+        self.scrollbar = ttk.Scrollbar(self.root)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.button_frame = ttk.Frame(self.menu_frame)
         self.button_frame.pack(padx=5, pady=10, fill=tk.X, side=tk.BOTTOM)
 
-        self.toggle_camera_button = tk.Button(self.button_frame, text="Activar/Desactivar Cámara", command=self.toggle_camera, bg='#007bff', fg='white')
+        self.toggle_camera_button = ttk.Button(self.button_frame, text="Activar/Desactivar Cámara", command=self.toggle_camera)
         self.toggle_camera_button.pack(padx=5, pady=5, fill=tk.X)
 
-        self.load_button = tk.Button(self.button_frame, text="Cargar Imagen", command=load_and_predict_image, bg='#007bff', fg='white')
+        self.load_button = ttk.Button(self.button_frame, text="Cargar Imagen", command=load_and_predict_image)
         self.load_button.pack(padx=5, pady=5, fill=tk.X)
 
-        self.exit_button = tk.Button(self.button_frame, text="Salir", command=root.quit, bg='#dc3545', fg='white')
+        self.exit_button = ttk.Button(self.button_frame, text="Salir", command=root.quit)
         self.exit_button.pack(padx=5, pady=5, fill=tk.X)
 
-        self.canvas_frame = tk.Frame(self.right_frame, bg='#2e2e2e')
+        self.canvas_frame = ttk.Frame(self.right_frame)
         self.canvas_frame.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
         self.color_model = load_trained_model()

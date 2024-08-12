@@ -261,7 +261,7 @@ def load_and_predict_image():
             return
         img = resize_image(img, 800)  # Redimensionar la imagen a un ancho máximo de 800 píxeles
         # Entrenar el modelo con 100 épocas
-        train_color_model(epochs=100) #-----------------------------------------------------------------------------------------------------------EPOCAS
+        train_color_model(epochs=1000) #-----------------------------------------------------------------------------------------------------------EPOCAS
         process_image(img)
 
 # Función para redimensionar una imagen
@@ -342,19 +342,19 @@ class ColorDetectorApp:
         self.root = root
         self.root.title("Detección de Colores y Formas")
         self.root.geometry("1200x800")
-        self.root.configure(bg='#D6D6D6')  # Fondo claro
+        self.root.configure(bg='#f8f9fa')  # Fondo claro
         
         self.colors = ["Rojo", "Verde", "Azul", "Cian", "Magenta", "Amarillo", "Negro", "Blanco"]
         self.color_names = ["Rojo", "Verde", "Azul", "Cian", "Magenta", "Amarillo", "Negro", "Blanco"]
 
         self.style = ttk.Style()
         self.style.theme_use('clam')
-        self.style.configure('TFrame', background='#D6D6D6')
-        self.style.configure('TLabel', background='#D6D6D6', font=('Arial', 12))
+        self.style.configure('TFrame', background='#f8f9fa')
+        self.style.configure('TLabel', background='#f8f9fa', font=('Arial', 12))
         self.style.configure('TButton', font=('Arial', 12), background='#007bff', foreground='white')  # Fondo azul
         self.style.configure('Menu.TFrame', background='#6f42c1')  # Fondo morado para el menú
         self.style.configure('Shadow.TFrame', relief='groove', borderwidth=2)
-        self.style.configure('Shadow.TLabel', background='#D6D6D6', font=('Arial', 12), relief='groove', borderwidth=2)
+        self.style.configure('Shadow.TLabel', background='#f8f9fa', font=('Arial', 12), relief='groove', borderwidth=2)
         
         self.menu_frame = ttk.Frame(self.root, width=200, style='Menu.TFrame')
         self.menu_frame.pack(fill=tk.Y, side=tk.LEFT, padx=10, pady=10)
@@ -394,9 +394,9 @@ class ColorDetectorApp:
         self.color_labels = []
         for color_name, color in zip(self.color_names, ["#ff0000", "#00ff00", "#0000ff", "#00ffff", "#ff00ff", "#ffff00", "#000000", "#ffffff"]):
             frame = ttk.Frame(self.color_labels_frame)
-            label = ttk.Label(frame, text=color_name, width=10, font=('Arial', 10), background='#D6D6D6', anchor='center')
+            label = ttk.Label(frame, text=color_name, width=10, font=('Arial', 10), background='#f8f9fa', anchor='center')
             label.pack(side=tk.TOP, padx=2, pady=2)
-            rectangle = ttk.Label(frame, image=draw_rectangle(color), background='#D6D6D6', anchor='center')
+            rectangle = ttk.Label(frame, image=draw_rectangle(color), background='#f8f9fa', anchor='center')
             rectangle.pack(side=tk.BOTTOM, padx=2, pady=2)
             frame.pack(side=tk.LEFT, padx=5, pady=5)
             self.color_labels.append((label, rectangle))

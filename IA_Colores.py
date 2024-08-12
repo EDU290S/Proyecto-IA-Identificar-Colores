@@ -261,7 +261,7 @@ def load_and_predict_image():
             return
         img = resize_image(img, 800)  # Redimensionar la imagen a un ancho máximo de 800 píxeles
         # Entrenar el modelo con 100 épocas
-        train_color_model(epochs=10)
+        train_color_model(epochs=10) #-----------------------------------------------------------------------------------------------------------EPOCAS
         process_image(img)
 
 # Función para redimensionar una imagen
